@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#11171b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Audi Kosten"><title>Audi Energiekosten-Rechner</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="audi-app-version" content="3.3"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#11171b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Audi Kosten"><title>Audi Energiekosten-Rechner</title><style>
 :root{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f2f5f2;background:#11171b;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0%,#283a30 0,#151c20 420px,#101519 900px);min-height:100vh}.wrap{max-width:650px;margin:auto;padding:18px 14px 45px}.top{background:linear-gradient(135deg,#24372d,#151c20 70%);border:1px solid #3d5146;border-radius:22px;overflow:hidden;margin-bottom:14px;position:relative}.top img{display:block;width:100%;height:150px;object-fit:cover;object-position:center 56%;mask-image:linear-gradient(to bottom,#000 78%,transparent)}.top-text{padding:0 18px 18px;margin-top:-8px;position:relative}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a4bba8}.top h1{font-size:22px;line-height:1.2;margin:5px 0}.plate{font-size:12px;color:#d0e4d4;letter-spacing:.05em}.top button{position:absolute;right:12px;bottom:15px}.panel{background:#20282e;border:1px solid #334139;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 8px 28px #0002}h2{font-size:17px;margin:0 0 14px;color:#f4f6f3}.control{margin:17px 0}.line{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:14px;color:#e0e8e1}.line output{font-weight:700;white-space:nowrap;color:#c4dec9}input[type=range]{width:100%;accent-color:#a4c8aa;margin:12px 0 0;cursor:pointer}.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#2a343c;padding:16px 12px;border-radius:13px}.metric.green{background:#30493a}.metric span{display:block;font-size:12px;color:#c5d5ca}.metric strong{display:block;font-size:clamp(19px,5vw,25px);margin-top:7px;color:white}.best{background:#334a3b;padding:15px;border-radius:14px;margin-top:12px;font-weight:650;color:#e6f3e8;line-height:1.45}.small{font-size:12px;color:#afc0b5;line-height:1.55}.switch{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;margin-top:16px}.switch input{width:21px;height:21px;accent-color:#86b893}.breakdown{display:grid;grid-template-columns:1fr auto;gap:12px 8px;font-size:13px}.breakdown b{text-align:right;color:#d4ead8}.foot{text-align:center;color:#9caca1;font-size:12px;margin-top:18px}button{border:1px solid #597160;background:#334a3b;color:#e7f4e9;padding:10px 14px;border-radius:10px;font-weight:650;cursor:pointer}button:active{transform:scale(.98)}.splash{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at center,#2d4434 0,#11181b 72%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:24px;text-align:center;opacity:1;transition:background .6s ease,visibility 0s linear 1.65s}.splash.hidden{visibility:hidden!important;opacity:0!important;pointer-events:none;transition:none!important}.splash img{width:min(96vw,700px);max-height:55vh;object-fit:contain;opacity:0;animation:heroAppear .7s ease-in-out .2s forwards}.splash h1{font-size:clamp(24px,6vw,34px);font-weight:550;margin:0}.splash .sub{color:#bdd2c1}.splash .skip{margin-top:15px;background:transparent;border:1px solid #52695b}/* Stable single-image transition: no CSS entrance animation replay */
 /* Only calculator UI fades; the header car must never fade with it. */
 .wrap{visibility:hidden;opacity:1;transition:none}
@@ -88,4 +88,46 @@ document.getElementById('skip').addEventListener('click',finishIntro);
 document.getElementById('showCar').addEventListener('click',showIntro);
 if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)finishIntro();
 else introTimer=setTimeout(hideIntro,2000);
+
+// Automatische Versionsprüfung für die zum Home-Bildschirm hinzugefügte Web-App.
+// Bei GitHub Pages bleibt die URL gleich; ein eindeutiger Query-Parameter
+// umgeht ältere HTML-Caches. Die Benutzereinstellungen bleiben in localStorage.
+(function(){
+  const CURRENT_VERSION='3.3';
+  const VERSION_PATTERN=/<meta\s+name=["']audi-app-version["']\s+content=["']([^"']+)["']/i;
+  let checking=false;
+  let lastCheck=0;
+  async function checkForUpdates(){
+    if(checking || !navigator.onLine || location.protocol==='file:')return;
+    if(Date.now()-lastCheck<15000)return;
+    lastCheck=Date.now();
+    checking=true;
+    try{
+      const url=new URL('index.html',location.href);
+      url.searchParams.set('update_check',String(Date.now()));
+      const response=await fetch(url.toString(),{cache:'no-store',redirect:'follow'});
+      if(!response.ok)return;
+      const html=await response.text();
+      const match=html.match(VERSION_PATTERN);
+      if(!match || match[1]===CURRENT_VERSION)return;
+      // Nur einmal pro neuer Versionsnummer neu laden, selbst bei Proxy-Caches.
+      const key='audi-last-update-attempt';
+      const previous=sessionStorage.getItem(key);
+      if(previous===match[1])return;
+      sessionStorage.setItem(key,match[1]);
+      const next=new URL(location.href);
+      next.searchParams.delete('update_check');
+      next.searchParams.set('v',match[1]);
+      location.replace(next.toString());
+    }catch(error){
+      // Offline oder vorübergehender Netzfehler: Rechner funktioniert weiter.
+    }finally{checking=false;}
+  }
+  window.addEventListener('pageshow',checkForUpdates);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')checkForUpdates();
+  });
+  // Bei lang geöffneter App auch gelegentlich auf Updates prüfen.
+  setInterval(()=>{if(document.visibilityState==='visible')checkForUpdates()},300000);
+})();
 </script></body></html>
